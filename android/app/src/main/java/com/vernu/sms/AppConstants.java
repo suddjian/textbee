@@ -8,6 +8,8 @@ public class AppConstants {
             Manifest.permission.SEND_SMS,
             Manifest.permission.READ_SMS,
             Manifest.permission.RECEIVE_SMS,
+            Manifest.permission.RECEIVE_MMS,
+            Manifest.permission.RECEIVE_WAP_PUSH,
             Manifest.permission.READ_PHONE_STATE
     };
     public static final String SHARED_PREFS_DEVICE_ID_KEY = "DEVICE_ID";

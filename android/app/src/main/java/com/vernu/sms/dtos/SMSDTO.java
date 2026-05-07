@@ -1,10 +1,13 @@
 package com.vernu.sms.dtos;
 
-import java.util.Date;
+import com.vernu.sms.models.MessageAttachmentPayload;
 
 public class SMSDTO {
     private String sender;
     private String message = "";
+    private String messageKind;
+    private String subject;
+    private MessageAttachmentPayload[] attachments;
     private long receivedAtInMillis;
     private String fingerprint;
 
@@ -35,6 +38,30 @@ public class SMSDTO {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getMessageKind() {
+        return messageKind;
+    }
+
+    public void setMessageKind(String messageKind) {
+        this.messageKind = messageKind;
+    }
+
+    public String getSubject() {
+        return subject;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
+
+    public MessageAttachmentPayload[] getAttachments() {
+        return attachments;
+    }
+
+    public void setAttachments(MessageAttachmentPayload[] attachments) {
+        this.attachments = attachments;
     }
 
     public long getReceivedAtInMillis() {
