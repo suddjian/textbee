@@ -321,7 +321,7 @@ public class MMSBroadcastReceiver extends BroadcastReceiver {
                     (subject != null ? subject : "") + "|" +
                     timestamp;
 
-            MessageDigest md = MessageDigest.getInstance("MD5");
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] hashBytes = md.digest(data.getBytes("UTF-8"));
 
             StringBuilder sb = new StringBuilder();
