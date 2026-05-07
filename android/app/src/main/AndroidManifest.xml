@@ -62,6 +62,10 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".receivers.MMSStatusReceiver"
+            android:exported="true" />
+
         <receiver android:enabled="true"
             android:name=".receivers.BootCompletedReceiver"
             android:exported="true"

@@ -1,8 +1,8 @@
 allowBuilds:
-  '@firebase/util': true
-  '@nestjs/core': true
-  '@scarf/scarf': true
-  core-js: true
-  msgpackr-extract: true
-  protobufjs: true
-  unrs-resolver: true
+  '@firebase/util': set this to true or false
+  '@nestjs/core': set this to true or false
+  '@scarf/scarf': set this to true or false
+  core-js: set this to true or false
+  msgpackr-extract: set this to true or false
+  protobufjs: set this to true or false
+  unrs-resolver: set this to true or false
