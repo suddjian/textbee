@@ -317,7 +317,7 @@ public class SMSHelper {
         }
 
         int contentLength = connection.getContentLength();
-        if (contentLength > MMS_ATTACHMENT_MAX_BYTES) {
+        if (contentLength > 0 && contentLength > MMS_ATTACHMENT_MAX_BYTES) {
             throw new IllegalStateException("Attachment is too large for MMS");
         }
 
@@ -368,13 +368,16 @@ public class SMSHelper {
         }
 
         if (mimeType.startsWith("image/")) {
-            return "attachment.jpg";
+            String extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType);
+            return extension != null && !extension.isEmpty() ? "attachment." + extension : "attachment.img";
         }
         if (mimeType.startsWith("audio/")) {
-            return "attachment.wav";
+            String extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType);
+            return extension != null && !extension.isEmpty() ? "attachment." + extension : "attachment.aud";
         }
         if (mimeType.startsWith("video/")) {
-            return "attachment.3gp";
+            String extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType);
+            return extension != null && !extension.isEmpty() ? "attachment." + extension : "attachment.vid";
         }
         return "attachment.bin";
     }

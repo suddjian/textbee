@@ -10,11 +10,14 @@ import com.klinker.android.send_message.MmsSentReceiver;
 import com.vernu.sms.dtos.SMSDTO;
 import com.vernu.sms.helpers.SMSHelper;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
 public class MMSStatusReceiver extends MmsSentReceiver {
     private static final String TAG = "MMSStatusReceiver";
+    private static final Map<Integer, String> RESULT_CODE_NAMES = buildResultCodeMap();
 
     @Override
     public void onMessageStatusUpdated(Context context, Intent intent, int resultCode) {
@@ -52,6 +55,11 @@ public class MMSStatusReceiver extends MmsSentReceiver {
     }
 
     private static String resolveResultCodeName(int resultCode) {
+        return RESULT_CODE_NAMES.get(resultCode);
+    }
+
+    private static Map<Integer, String> buildResultCodeMap() {
+        Map<Integer, String> map = new HashMap<>();
         for (Class<?> clazz : new Class<?>[]{SmsManager.class, Activity.class}) {
             try {
                 for (Field field : clazz.getDeclaredFields()) {
@@ -59,14 +67,13 @@ public class MMSStatusReceiver extends MmsSentReceiver {
                     if (!Modifier.isStatic(field.getModifiers()) || !Modifier.isFinal(field.getModifiers())) continue;
                     if (!field.getName().startsWith("RESULT_")) continue;
                     field.setAccessible(true);
-                    if (field.getInt(null) == resultCode) {
-                        return clazz.getSimpleName() + "." + field.getName();
-                    }
+                    int code = field.getInt(null);
+                    map.put(code, clazz.getSimpleName() + "." + field.getName());
                 }
             } catch (Exception e) {
                 Log.w(TAG, "Reflection failed for " + clazz.getSimpleName() + ": " + e.getMessage());
             }
         }
-        return null;
+        return map;
     }
 }
