@@ -156,6 +156,10 @@ const WebhooksHistory = () => {
     'MESSAGE_SENT',
     'MESSAGE_DELIVERED',
     'MESSAGE_FAILED',
+    'MMS_RECEIVED',
+    'MMS_SENT',
+    'MMS_DELIVERED',
+    'MMS_FAILED',
     'UNKNOWN_STATE',
   ]
   return (

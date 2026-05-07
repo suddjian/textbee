@@ -18,6 +18,15 @@ export class SMSBatch {
   @Prop({ type: String })
   message: string
 
+  @Prop({ type: String, enum: ['sms', 'mms'], default: 'sms' })
+  messageKind: 'sms' | 'mms'
+
+  @Prop({ type: String })
+  subject?: string
+
+  @Prop({ type: Number, default: 0 })
+  attachmentCount?: number
+
   @Prop({ type: Boolean, default: false })
   encrypted: boolean
 

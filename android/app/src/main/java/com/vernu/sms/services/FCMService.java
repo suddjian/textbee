@@ -123,7 +123,7 @@ public class FCMService extends FirebaseMessagingService {
         for (String recipient : recipients) {
             SmsSendWorker.enqueue(this, recipient, smsPayload.getMessage(),
                     smsPayload.getSmsId(), smsPayload.getSmsBatchId(),
-                    smsPayload.getSimSubscriptionId());
+                    smsPayload.getSimSubscriptionId(), smsPayload.getMessageKind());
         }
 
         Log.d(TAG, "Enqueued " + recipients.length + " SMS for sending - Batch: " + smsPayload.getSmsBatchId());

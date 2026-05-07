@@ -25,6 +25,7 @@ public class SmsSendWorker extends Worker {
     public static final String KEY_SMS_ID = "sms_id";
     public static final String KEY_SMS_BATCH_ID = "sms_batch_id";
     public static final String KEY_SIM_SUBSCRIPTION_ID = "sim_subscription_id";
+    public static final String KEY_MESSAGE_KIND = "message_kind";
 
     public SmsSendWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
         super(context, workerParams);
@@ -38,6 +39,7 @@ public class SmsSendWorker extends Worker {
         String smsId = getInputData().getString(KEY_SMS_ID);
         String smsBatchId = getInputData().getString(KEY_SMS_BATCH_ID);
         int simSubscriptionId = getInputData().getInt(KEY_SIM_SUBSCRIPTION_ID, -1);
+        String messageKind = getInputData().getString(KEY_MESSAGE_KIND);
 
         if (phone == null || message == null || smsId == null) {
             Log.e(TAG, "Missing required parameters");
@@ -45,6 +47,11 @@ public class SmsSendWorker extends Worker {
         }
 
         Context context = getApplicationContext();
+
+        if ("mms".equalsIgnoreCase(messageKind)) {
+            SMSHelper.reportUnsupportedMMS(context, smsId, smsBatchId);
+            return Result.success();
+        }
 
         // Resolve SIM: backend-provided > app preference > device default
         Integer resolvedSim = resolveSim(context, simSubscriptionId);
@@ -91,13 +98,14 @@ public class SmsSendWorker extends Worker {
     }
 
     public static void enqueue(Context context, String phone, String message,
-                               String smsId, String smsBatchId, Integer simSubscriptionId) {
+                               String smsId, String smsBatchId, Integer simSubscriptionId, String messageKind) {
         Data inputData = new Data.Builder()
                 .putString(KEY_PHONE, phone)
                 .putString(KEY_MESSAGE, message)
                 .putString(KEY_SMS_ID, smsId)
                 .putString(KEY_SMS_BATCH_ID, smsBatchId)
                 .putInt(KEY_SIM_SUBSCRIPTION_ID, simSubscriptionId != null ? simSubscriptionId : -1)
+                .putString(KEY_MESSAGE_KIND, messageKind != null ? messageKind : "sms")
                 .build();
 
         OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(SmsSendWorker.class)

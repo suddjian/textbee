@@ -50,6 +50,26 @@ const sms_sent_failed = {
   webhookEvent: 'MESSAGE_FAILED',
 }
 
+const mms_received_payload = {
+  smsId: 'smsId',
+  sender: '+123456789',
+  messageKind: 'mms',
+  subject: 'Sample subject',
+  message: 'Optional text',
+  attachments: [
+    {
+      url: 'https://cdn.example.com/media/asset-1.jpg',
+      mimeType: 'image/jpeg',
+      fileName: 'asset-1.jpg',
+      sizeBytes: 125000,
+    },
+  ],
+  receivedAt: '2025-10-05T13:00:35.208Z',
+  deviceId: 'deviceId',
+  webhookSubscriptionId: 'webhookSubscriptionId',
+  webhookEvent: 'MMS_RECEIVED',
+}
+
 const VERIFICATION_CODE = `
 // Node.js example using crypto
 const crypto = require('crypto');
@@ -119,10 +139,11 @@ export function WebhookDocs() {
         </AccordionTrigger>
         <AccordionContent className='px-3 sm:px-4 pb-4'>
           <div className='space-y-2 mt-2 text-sm text-muted-foreground'>
-            <p>
-              When a new SMS is received or SMS status is updated, we&apos;ll send a POST request to your
-              webhook URL with the event data. Your endpoint should:
-            </p>
+              <p>
+                When a new SMS/MMS is received or a delivery status is updated,
+                we&apos;ll send a POST request to your webhook URL with the event
+                data. Your endpoint should:
+              </p>
             <ul className='list-disc pl-6 space-y-1'>
               <li>Accept POST requests</li>
               <li>Return a 2XX status code to acknowledge receipt</li>
@@ -171,11 +192,12 @@ export function WebhookDocs() {
                 <Tabs defaultValue='message_received'>
 
                 <TabsList>
-                  <TabsTrigger value='message_received'>Message Received</TabsTrigger>
-                  <TabsTrigger value='message_sent'>Message Sent</TabsTrigger>
-                  <TabsTrigger value='message_delivered'>Message Delivered</TabsTrigger>
-                  <TabsTrigger value='message_failed'>Message Failed</TabsTrigger>
-                </TabsList>
+                   <TabsTrigger value='message_received'>Message Received</TabsTrigger>
+                   <TabsTrigger value='message_sent'>Message Sent</TabsTrigger>
+                   <TabsTrigger value='message_delivered'>Message Delivered</TabsTrigger>
+                   <TabsTrigger value='message_failed'>Message Failed</TabsTrigger>
+                   <TabsTrigger value='mms_received'>MMS Received</TabsTrigger>
+                 </TabsList>
                 <TabsContent value='message_received'>
                   <Code>{JSON.stringify(message_received_payload, null, 2)}</Code>
                 </TabsContent>
@@ -187,6 +209,9 @@ export function WebhookDocs() {
                 </TabsContent>
                 <TabsContent value='message_failed'>
                   <Code>{JSON.stringify(sms_sent_failed, null, 2)}</Code>
+                </TabsContent>
+                <TabsContent value='mms_received'>
+                  <Code>{JSON.stringify(mms_received_payload, null, 2)}</Code>
                 </TabsContent>
                 </Tabs>
               </div>

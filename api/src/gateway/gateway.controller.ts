@@ -24,6 +24,7 @@ import {
   RegisterDeviceInputDTO,
   RetrieveSMSResponseDTO,
   SendBulkSMSInputDTO,
+  SendMMSInputDTO,
   SendSMSInputDTO,
   UpdateSMSStatusDTO,
   HeartbeatInputDTO,
@@ -31,6 +32,7 @@ import {
 } from './gateway.dto'
 import { GatewayService } from './gateway.service'
 import { CanModifyDevice } from './guards/can-modify-device.guard'
+import { MessageKind } from './message-kind.enum'
 
 @ApiTags('gateway')
 @ApiBearerAuth()
@@ -104,6 +106,17 @@ export class GatewayController {
     return { data }
   }
 
+  @ApiOperation({ summary: 'Send MMS to a device' })
+  @UseGuards(AuthGuard, CanModifyDevice)
+  @Post(['/devices/:id/sendMMS', '/devices/:id/send-mms'])
+  async sendMMS(
+    @Param('id') deviceId: string,
+    @Body() mmsData: SendMMSInputDTO,
+  ) {
+    const data = await this.gatewayService.sendMMS(deviceId, mmsData)
+    return { data }
+  }
+
   @ApiOperation({ summary: 'Send Bulk SMS' })
   @UseGuards(AuthGuard, CanModifyDevice)
   @Post(['/devices/:id/send-bulk-sms'])
@@ -123,6 +136,18 @@ export class GatewayController {
   @UseGuards(AuthGuard, CanModifyDevice)
   async receiveSMS(@Param('id') deviceId: string, @Body() dto: ReceivedSMSDTO) {
     const data = await this.gatewayService.receiveSMS(deviceId, dto)
+    return { data }
+  }
+
+  @ApiOperation({ summary: 'Received MMS from a device' })
+  @HttpCode(HttpStatus.OK)
+  @Post(['/devices/:id/receiveMMS', '/devices/:id/receive-mms'])
+  @UseGuards(AuthGuard, CanModifyDevice)
+  async receiveMMS(@Param('id') deviceId: string, @Body() dto: ReceivedSMSDTO) {
+    const data = await this.gatewayService.receiveSMS(deviceId, {
+      ...dto,
+      messageKind: MessageKind.MMS,
+    })
     return { data }
   }
 

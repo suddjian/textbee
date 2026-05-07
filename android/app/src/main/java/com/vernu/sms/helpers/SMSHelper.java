@@ -164,6 +164,18 @@ public class SMSHelper {
         
         updateSMSStatus(context, smsDTO);
     }
+
+    public static void reportUnsupportedMMS(Context context, String smsId, String smsBatchId) {
+        SMSDTO smsDTO = new SMSDTO();
+        smsDTO.setSmsId(smsId);
+        smsDTO.setSmsBatchId(smsBatchId);
+        smsDTO.setStatus("FAILED");
+        smsDTO.setFailedAtInMillis(System.currentTimeMillis());
+        smsDTO.setErrorCode("MMS_NOT_SUPPORTED");
+        smsDTO.setErrorMessage("This app version does not support MMS sending yet");
+
+        updateSMSStatus(context, smsDTO);
+    }
     
     private static void updateSMSStatus(Context context, SMSDTO smsDTO) {
         String deviceId = SharedPreferenceHelper.getSharedPreferenceString(context, AppConstants.SHARED_PREFS_DEVICE_ID_KEY, "");

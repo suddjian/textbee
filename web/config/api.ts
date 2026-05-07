@@ -28,6 +28,7 @@ export const ApiEndpoints = {
     listDevices: () => '/gateway/devices',
     deleteDevice: (id: string) => `/gateway/devices/${id}`,
     sendSMS: (id: string) => `/gateway/devices/${id}/send-sms`,
+    sendMMS: (id: string) => `/gateway/devices/${id}/send-mms`,
     sendBulkSMS: (id: string) => `/gateway/devices/${id}/send-bulk-sms`,
     getReceivedSMS: (id: string) => `/gateway/devices/${id}/get-received-sms`,
     getMessages: (id: string) => `/gateway/devices/${id}/messages`,
