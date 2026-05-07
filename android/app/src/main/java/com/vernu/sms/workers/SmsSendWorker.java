@@ -118,4 +118,9 @@ public class SmsSendWorker extends Worker {
 
         Log.d(TAG, "SMS enqueued for sending - ID: " + smsId + ", Phone: " + phone);
     }
+
+    public static void enqueue(Context context, String phone, String message,
+                               String smsId, String smsBatchId, Integer simSubscriptionId) {
+        enqueue(context, phone, message, smsId, smsBatchId, simSubscriptionId, "sms");
+    }
 }

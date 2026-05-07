@@ -287,7 +287,7 @@ export class RetrieveSMSDTO {
 
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     description: 'The message received',
   })
   message?: string

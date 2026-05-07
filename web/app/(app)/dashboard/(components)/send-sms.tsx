@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form'
+import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { sendSmsSchema } from '@/lib/schemas'
 import type { SendSmsFormData } from '@/lib/schemas'
@@ -64,6 +64,7 @@ export default function SendSms() {
     control,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<SendSmsFormData>({
     resolver: zodResolver(sendSmsSchema),
@@ -77,12 +78,6 @@ export default function SendSms() {
     },
   })
 
-  const { fields, append, remove } = useFieldArray({
-    control,
-    // @ts-expect-error - react-hook-form does not fully support primitive arrays here
-    name: 'recipients' as const,
-  })
-
   const selectedDeviceId = useWatch({
     control,
     name: 'deviceId',
@@ -91,6 +86,10 @@ export default function SendSms() {
     control,
     name: 'messageKind',
   })
+  const recipients = useWatch({
+    control,
+    name: 'recipients',
+  }) || ['']
 
   const selectedDevice = devices?.data?.find(
     (device) => device._id === selectedDeviceId
@@ -211,8 +210,8 @@ export default function SendSms() {
               )}
 
               <div className='space-y-2'>
-                {fields.map((field, index) => (
-                  <div key={field.id}>
+                {recipients.map((_, index) => (
+                  <div key={`recipient-${index}`}>
                     <div className='flex gap-2'>
                       <Input
                         type='tel'
@@ -223,8 +222,17 @@ export default function SendSms() {
                         type='button'
                         variant='ghost'
                         size='icon'
-                        onClick={() => remove(index)}
-                        disabled={index === 0 && fields?.length === 1}
+                        onClick={() => {
+                          const nextRecipients = getValues('recipients').filter(
+                            (_, recipientIndex) => recipientIndex !== index,
+                          )
+                          setValue(
+                            'recipients',
+                            nextRecipients.length > 0 ? nextRecipients : [''],
+                            { shouldValidate: true },
+                          )
+                        }}
+                        disabled={index === 0 && recipients.length === 1}
                       >
                         <X className='h-4 w-4' />
                       </Button>
@@ -240,7 +248,13 @@ export default function SendSms() {
                   type='button'
                   variant='outline'
                   size='sm'
-                  onClick={() => (append as any)('')}
+                  onClick={() =>
+                    setValue(
+                      'recipients',
+                      [...getValues('recipients'), ''],
+                      { shouldValidate: true },
+                    )
+                  }
                   className='w-full'
                 >
                   <Plus className='h-4 w-4 mr-2' />
@@ -276,10 +290,17 @@ export default function SendSms() {
               {selectedMessageKind === 'mms' && (
                 <>
                   <div>
-                    <Input
-                      type='text'
-                      placeholder='MMS subject (optional)'
-                      {...register('subject')}
+                    <Controller
+                      name='subject'
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          type='text'
+                          placeholder='MMS subject (optional)'
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                        />
+                      )}
                     />
                     {errors.subject && (
                       <p className='text-sm text-destructive mt-1'>
@@ -294,9 +315,10 @@ export default function SendSms() {
                       placeholder='Attachment URL (required for MMS)'
                       {...register('attachments.0.url')}
                     />
-                    {errors.attachments && (
+                    {(errors.attachments?.[0]?.url || errors.attachments) && (
                       <p className='text-sm text-destructive mt-1'>
-                        {errors.attachments.message as string}
+                        {(errors.attachments?.[0] as any)?.url?.message ||
+                          (errors.attachments as any)?.message}
                       </p>
                     )}
                   </div>

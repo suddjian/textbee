@@ -44,13 +44,6 @@ export const sendSmsSchema = z.object({
     })
   }
 
-  if (!value.message && (!value.attachments || value.attachments.length === 0)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['message'],
-      message: 'Provide a message body or at least one attachment',
-    })
-  }
 })
 
 export type SendSmsFormData = z.infer<typeof sendSmsSchema>

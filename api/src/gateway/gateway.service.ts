@@ -465,7 +465,7 @@ export class GatewayService {
   async sendMMS(deviceId: string, mmsData: SendMMSInputDTO): Promise<any> {
     return this.sendSMS(deviceId, {
       ...mmsData,
-      messageKind: MessageKind.MMS as any,
+      messageKind: MessageKind.MMS,
     })
   }
 
@@ -807,15 +807,20 @@ export class GatewayService {
     }
 
     const attachments = this.normalizeAttachments(dto.attachments)
-    const messageKind = this.normalizeMessageKind(dto.messageKind as string, attachments)
-    const subject = dto.subject?.trim()
+    const messageKind = this.normalizeMessageKind(
+      dto.messageKind as string,
+      attachments,
+    )
+    const sender = this.normalizeTextField(dto.sender)
+    const messageText = this.normalizeTextField(dto.message)
+    const subject = this.normalizeTextField(dto.subject)
 
     if (
       (!dto.receivedAt && !dto.receivedAtInMillis) ||
-      !dto.sender ||
-      (!dto.message && attachments.length === 0)
+      !sender ||
+      (!messageText && attachments.length === 0)
     ) {
-      console.error(`receiveSMS: Invalid received SMS data (sender: ${dto.sender}, message: ${dto.message}) (receivedAt: ${dto.receivedAt}, receivedAtInMillis: ${dto.receivedAtInMillis})`)
+      console.error(`receiveSMS: Invalid received SMS data (sender: ${sender}, message: ${messageText}) (receivedAt: ${dto.receivedAt}, receivedAtInMillis: ${dto.receivedAtInMillis})`)
       throw new HttpException(
         {
           success: false,
@@ -843,8 +848,8 @@ export class GatewayService {
     const existingSMS = await this.smsModel.findOne({
       device: device._id,
       type: SMSType.RECEIVED,
-      sender: dto.sender,
-      message: dto.message || '',
+      sender,
+      message: messageText,
       messageKind,
       subject,
       receivedAt: {
@@ -855,7 +860,7 @@ export class GatewayService {
 
     if (existingSMS) {
       console.log(
-        `Duplicate SMS detected for device ${deviceId}, sender ${dto.sender}, returning existing record: ${existingSMS._id}`,
+        `Duplicate SMS detected for device ${deviceId}, sender ${sender}, returning existing record: ${existingSMS._id}`,
       )
       return existingSMS
     }
@@ -863,13 +868,13 @@ export class GatewayService {
     const sms = await this.smsModel.create({
       user: device.user,
       device: device._id,
-      message: dto.message || '',
+      message: messageText,
       messageKind,
       subject,
       attachments,
       type: SMSType.RECEIVED,
       status: 'received',
-      sender: dto.sender,
+      sender,
       receivedAt,
       threadId: dto.threadId,
       groupId: dto.groupId,
@@ -1105,7 +1110,7 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
     // Trigger webhook event for SMS status update
     try {
        let event: WebhookEvent
-       const isMms = (updatedSms as any)?.messageKind === MessageKind.MMS
+       const isMms = updatedSms?.messageKind === MessageKind.MMS
         switch (normalizedStatus) {
           case 'sent':
             event = isMms ? WebhookEvent.MMS_SENT : WebhookEvent.MESSAGE_SENT
@@ -1231,6 +1236,13 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
         fileName: attachment.fileName,
         sizeBytes: attachment.sizeBytes,
       }))
+  }
+
+  private normalizeTextField(value?: unknown): string {
+    if (typeof value !== 'string') {
+      return ''
+    }
+    return value.trim()
   }
 
   async getSMSById(smsId: string): Promise<any> {
