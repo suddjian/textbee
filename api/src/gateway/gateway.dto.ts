@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
+import { MessageKind } from './message-kind.enum'
 
 export class SimInfoDTO {
   @ApiProperty({ type: Number, required: true })
@@ -84,10 +85,38 @@ export class RegisterDeviceInputDTO {
 export class SMSData {
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
+    enum: MessageKind,
+    default: MessageKind.SMS,
+    description: 'Message kind',
+  })
+  messageKind?: MessageKind
+
+  @ApiProperty({
+    type: String,
+    required: false,
     description: 'The message to send',
   })
-  message: string
+  message?: string
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: 'Optional MMS subject',
+  })
+  subject?: string
+
+  @ApiProperty({
+    type: [Object],
+    required: false,
+    description: 'Optional MMS attachments metadata',
+  })
+  attachments?: Array<{
+    url: string
+    mimeType?: string
+    fileName?: string
+    sizeBytes?: number
+  }>
 
   @ApiProperty({
     type: Array,
@@ -138,6 +167,7 @@ export class SMSData {
   receivers: string[]
 }
 export class SendSMSInputDTO extends SMSData {}
+export class SendMMSInputDTO extends SMSData {}
 
 export class SendBulkSMSInputDTO {
   @ApiProperty({
@@ -158,10 +188,38 @@ export class SendBulkSMSInputDTO {
 export class ReceivedSMSDTO {
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
+    enum: MessageKind,
+    default: MessageKind.SMS,
+    description: 'Message kind',
+  })
+  messageKind?: MessageKind
+
+  @ApiProperty({
+    type: String,
+    required: false,
     description: 'The message received',
   })
-  message: string
+  message?: string
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: 'Optional MMS subject',
+  })
+  subject?: string
+
+  @ApiProperty({
+    type: [Object],
+    required: false,
+    description: 'Optional MMS attachments metadata',
+  })
+  attachments?: Array<{
+    url: string
+    mimeType?: string
+    fileName?: string
+    sizeBytes?: number
+  }>
 
   @ApiProperty({
     type: String,
@@ -169,6 +227,20 @@ export class ReceivedSMSDTO {
     description: 'The phone number of the sender',
   })
   sender: string
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: 'Optional conversation thread ID',
+  })
+  threadId?: string
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: 'Optional group ID',
+  })
+  groupId?: string
 
   @ApiProperty({
     type: Date,
@@ -215,10 +287,37 @@ export class RetrieveSMSDTO {
 
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     description: 'The message received',
   })
-  message: string
+  message?: string
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    enum: MessageKind,
+    description: 'Message kind',
+  })
+  messageKind?: MessageKind
+
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: 'Optional MMS subject',
+  })
+  subject?: string
+
+  @ApiProperty({
+    type: [Object],
+    required: false,
+    description: 'Optional MMS attachments metadata',
+  })
+  attachments?: Array<{
+    url: string
+    mimeType?: string
+    fileName?: string
+    sizeBytes?: number
+  }>
 
   @ApiProperty({
     type: DeviceDTO,
@@ -229,10 +328,10 @@ export class RetrieveSMSDTO {
 
   @ApiProperty({
     type: String,
-    required: true,
+    required: false,
     description: 'The phone number of the sender',
   })
-  sender: string
+  sender?: string
 
   @ApiProperty({
     type: Date,

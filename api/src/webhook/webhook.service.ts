@@ -334,6 +334,9 @@ export class WebhookService {
     let payload: Record<string, any> = {
       smsId: sms._id,
       message: sms.message,
+      messageKind: (sms as any).messageKind || 'sms',
+      subject: (sms as any).subject,
+      attachments: (sms as any).attachments || [],
       deviceId: sms.device,
       webhookSubscriptionId: webhookSubscription._id,
       webhookEvent: event,
@@ -342,6 +345,7 @@ export class WebhookService {
 
     switch (event) {
       case WebhookEvent.MESSAGE_RECEIVED:
+      case WebhookEvent.MMS_RECEIVED:
         payload = {
           ...payload,
           sender: sms.sender,
@@ -350,6 +354,7 @@ export class WebhookService {
         break
 
       case WebhookEvent.MESSAGE_DELIVERED:
+      case WebhookEvent.MMS_DELIVERED:
         payload = {
           ...payload,
           smsBatchId: sms.smsBatch,
@@ -361,6 +366,7 @@ export class WebhookService {
         break
 
       case WebhookEvent.MESSAGE_SENT:
+      case WebhookEvent.MMS_SENT:
         payload = {
           ...payload,
           smsBatchId: sms.smsBatch,
@@ -371,6 +377,7 @@ export class WebhookService {
         break
 
       case WebhookEvent.MESSAGE_FAILED:
+      case WebhookEvent.MMS_FAILED:
         payload = {
           ...payload,
           smsBatchId: sms.smsBatch,

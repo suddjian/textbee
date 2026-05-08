@@ -9,6 +9,7 @@ import {
   RegisterDeviceInputDTO,
   RetrieveSMSDTO,
   SendBulkSMSInputDTO,
+  SendMMSInputDTO,
   SendSMSInputDTO,
   UpdateSMSStatusDTO,
   HeartbeatInputDTO,
@@ -24,6 +25,7 @@ import { WebhookEvent } from '../webhook/webhook-event.enum'
 import { WebhookService } from '../webhook/webhook.service'
 import { BillingService } from '../billing/billing.service'
 import { SmsQueueService } from './queue/sms-queue.service'
+import { MessageKind } from './message-kind.enum'
 
 @Injectable()
 export class GatewayService {
@@ -225,12 +227,28 @@ export class GatewayService {
 
     const message = smsData.message || smsData.smsBody
     const recipients = smsData.recipients || smsData.receivers
+    const messageKind = this.normalizeMessageKind(
+      smsData.messageKind as string,
+      smsData.attachments,
+    )
+    const subject = smsData.subject?.trim()
+    const attachments = this.normalizeAttachments(smsData.attachments)
 
-    if (!message) {
+    if (!message && attachments.length === 0) {
       throw new HttpException(
         {
           success: false,
-          error: 'Message cannot be blank',
+          error: 'Message cannot be blank when no attachments are provided',
+        },
+        HttpStatus.BAD_REQUEST,
+      )
+    }
+
+    if (messageKind === MessageKind.MMS && attachments.length === 0) {
+      throw new HttpException(
+        {
+          success: false,
+          error: 'MMS requires at least one attachment',
         },
         HttpStatus.BAD_REQUEST,
       )
@@ -275,6 +293,9 @@ export class GatewayService {
         user: device.user,
         device: device._id,
         message,
+        messageKind,
+        subject,
+        attachmentCount: attachments.length,
         recipientCount: recipients.length,
         recipientPreview: this.getRecipientsPreview(recipients),
         status: 'pending',
@@ -299,6 +320,9 @@ export class GatewayService {
         device: device._id,
         smsBatch: smsBatch._id,
         message: message,
+        messageKind,
+        subject,
+        attachments,
         type: SMSType.SENT,
         recipient,
         requestedAt: new Date(),
@@ -311,6 +335,9 @@ export class GatewayService {
         smsId: sms._id,
         smsBatchId: smsBatch._id,
         message,
+        messageKind,
+        subject,
+        attachments,
         recipients: [recipient],
         ...(smsData.simSubscriptionId !== undefined && {
           simSubscriptionId: smsData.simSubscriptionId,
@@ -435,6 +462,13 @@ export class GatewayService {
     }
   }
 
+  async sendMMS(deviceId: string, mmsData: SendMMSInputDTO): Promise<any> {
+    return this.sendSMS(deviceId, {
+      ...mmsData,
+      messageKind: MessageKind.MMS,
+    })
+  }
+
   async sendBulkSMS(deviceId: string, body: SendBulkSMSInputDTO): Promise<any> {
     const device = await this.deviceModel.findById(deviceId)
 
@@ -481,11 +515,24 @@ export class GatewayService {
     }
 
     const { messageTemplate, messages } = body
+    const containsMms = messages.some(
+      (messageData) =>
+        this.normalizeMessageKind(
+          messageData.messageKind as string,
+          messageData.attachments,
+        ) === MessageKind.MMS,
+    )
 
     const smsBatch = await this.smsBatchModel.create({
       user: device.user,
       device: device._id,
       message: messageTemplate,
+      messageKind: containsMms ? MessageKind.MMS : MessageKind.SMS,
+      attachmentCount: messages.reduce(
+        (acc, messageData) =>
+          acc + this.normalizeAttachments(messageData.attachments).length,
+        0,
+      ),
       recipientCount: messages
         .map((m) => m.recipients.length)
         .reduce((a, b) => a + b, 0),
@@ -501,6 +548,14 @@ export class GatewayService {
     const smsToFcmMetadata: Array<{
       recipient: string
       message: string
+      messageKind: MessageKind
+      subject?: string
+      attachments?: Array<{
+        url: string
+        mimeType?: string
+        fileName?: string
+        sizeBytes?: number
+      }>
       simSubscriptionId?: number
       delayMs?: number
     }> = []
@@ -508,8 +563,14 @@ export class GatewayService {
     for (const smsData of messages) {
       const message = smsData.message
       const recipients = smsData.recipients
+      const messageKind = this.normalizeMessageKind(
+        smsData.messageKind as string,
+        smsData.attachments,
+      )
+      const subject = smsData.subject?.trim()
+      const attachments = this.normalizeAttachments(smsData.attachments)
 
-      if (!message) {
+      if (!message && attachments.length === 0) {
         continue
       }
 
@@ -527,6 +588,9 @@ export class GatewayService {
           device: device._id,
           smsBatch: smsBatch._id,
           message: message,
+          messageKind,
+          subject,
+          attachments,
           type: SMSType.SENT,
           recipient,
           requestedAt: new Date(),
@@ -538,6 +602,9 @@ export class GatewayService {
         smsToFcmMetadata.push({
           recipient,
           message,
+          messageKind,
+          subject,
+          attachments,
           ...(smsData.simSubscriptionId !== undefined && {
             simSubscriptionId: smsData.simSubscriptionId,
           }),
@@ -581,6 +648,9 @@ export class GatewayService {
         smsId: sms._id,
         smsBatchId: smsBatch._id,
         message: metadata.message,
+        messageKind: metadata.messageKind,
+        subject: metadata.subject,
+        attachments: metadata.attachments,
         recipients: [metadata.recipient],
         ...(metadata.simSubscriptionId !== undefined && {
           simSubscriptionId: metadata.simSubscriptionId,
@@ -736,12 +806,21 @@ export class GatewayService {
       )
     }
 
+    const attachments = this.normalizeAttachments(dto.attachments)
+    const messageKind = this.normalizeMessageKind(
+      dto.messageKind as string,
+      attachments,
+    )
+    const sender = this.normalizeTextField(dto.sender)
+    const messageText = this.normalizeTextField(dto.message)
+    const subject = this.normalizeTextField(dto.subject)
+
     if (
       (!dto.receivedAt && !dto.receivedAtInMillis) ||
-      !dto.sender ||
-      !dto.message
+      !sender ||
+      (!messageText && attachments.length === 0)
     ) {
-      console.error(`receiveSMS: Invalid received SMS data (sender: ${dto.sender}, message: ${dto.message}) (receivedAt: ${dto.receivedAt}, receivedAtInMillis: ${dto.receivedAtInMillis})`)
+      console.error(`receiveSMS: Invalid received SMS data (sender: ${sender}, message: ${messageText}) (receivedAt: ${dto.receivedAt}, receivedAtInMillis: ${dto.receivedAtInMillis})`)
       throw new HttpException(
         {
           success: false,
@@ -769,8 +848,10 @@ export class GatewayService {
     const existingSMS = await this.smsModel.findOne({
       device: device._id,
       type: SMSType.RECEIVED,
-      sender: dto.sender,
-      message: dto.message,
+      sender,
+      message: messageText,
+      messageKind,
+      subject,
       receivedAt: {
         $gte: toleranceStart,
         $lte: toleranceEnd,
@@ -779,7 +860,7 @@ export class GatewayService {
 
     if (existingSMS) {
       console.log(
-        `Duplicate SMS detected for device ${deviceId}, sender ${dto.sender}, returning existing record: ${existingSMS._id}`,
+        `Duplicate SMS detected for device ${deviceId}, sender ${sender}, returning existing record: ${existingSMS._id}`,
       )
       return existingSMS
     }
@@ -787,11 +868,16 @@ export class GatewayService {
     const sms = await this.smsModel.create({
       user: device.user,
       device: device._id,
-      message: dto.message,
+      message: messageText,
+      messageKind,
+      subject,
+      attachments,
       type: SMSType.RECEIVED,
       status: 'received',
-      sender: dto.sender,
+      sender,
       receivedAt,
+      threadId: dto.threadId,
+      groupId: dto.groupId,
     })
 
     this.deviceModel
@@ -808,7 +894,10 @@ export class GatewayService {
       .deliverNotification({
         sms,
         user: device.user,
-        event: WebhookEvent.MESSAGE_RECEIVED,
+        event:
+          messageKind === MessageKind.MMS
+            ? WebhookEvent.MMS_RECEIVED
+            : WebhookEvent.MESSAGE_RECEIVED,
       })
       .catch((e) => {
         console.log(e)
@@ -1021,18 +1110,23 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
     // Trigger webhook event for SMS status update
     try {
        let event: WebhookEvent
-       switch (normalizedStatus) {
+       const isMms = updatedSms?.messageKind === MessageKind.MMS
+        switch (normalizedStatus) {
           case 'sent':
-            event = WebhookEvent.MESSAGE_SENT
+            event = isMms ? WebhookEvent.MMS_SENT : WebhookEvent.MESSAGE_SENT
             break
           case 'delivered':
-            event = WebhookEvent.MESSAGE_DELIVERED
+            event = isMms
+              ? WebhookEvent.MMS_DELIVERED
+              : WebhookEvent.MESSAGE_DELIVERED
             break
           case 'failed':
-            event = WebhookEvent.MESSAGE_FAILED
+            event = isMms ? WebhookEvent.MMS_FAILED : WebhookEvent.MESSAGE_FAILED
             break
           case 'received':
-            event = WebhookEvent.MESSAGE_RECEIVED
+            event = isMms
+              ? WebhookEvent.MMS_RECEIVED
+              : WebhookEvent.MESSAGE_RECEIVED
             break
           default:
             event = WebhookEvent.UNKNOWN_STATE
@@ -1089,6 +1183,66 @@ const updatedSms = await this.smsModel.findByIdAndUpdate(
         recipients.length - 2
       } others`
     }
+  }
+
+  private normalizeMessageKind(
+    messageKind?: string,
+    attachments?: Array<{
+      url: string
+      mimeType?: string
+      fileName?: string
+      sizeBytes?: number
+    }>,
+  ): MessageKind {
+    if (typeof messageKind === 'string') {
+      const normalized = messageKind.toLowerCase()
+      if (normalized === MessageKind.MMS) {
+        return MessageKind.MMS
+      }
+      if (normalized === MessageKind.SMS) {
+        return MessageKind.SMS
+      }
+    }
+
+    if (Array.isArray(attachments) && attachments.length > 0) {
+      return MessageKind.MMS
+    }
+
+    return MessageKind.SMS
+  }
+
+  private normalizeAttachments(
+    attachments?: Array<{
+      url: string
+      mimeType?: string
+      fileName?: string
+      sizeBytes?: number
+    }>,
+  ): Array<{
+    url: string
+    mimeType?: string
+    fileName?: string
+    sizeBytes?: number
+  }> {
+    if (!Array.isArray(attachments)) {
+      return []
+    }
+
+    return attachments
+      .filter((attachment) => attachment?.url && attachment.url.trim() !== '')
+      .map((attachment) => ({
+        url: attachment.url.trim(),
+        mimeType: attachment.mimeType,
+        fileName: attachment.fileName,
+        sizeBytes: attachment.sizeBytes,
+      }))
+  }
+
+  private normalizeTextField(value?: unknown): string {
+    if (typeof value !== 'string') {
+      return ''
+    }
+    return value.trim()
   }
 
   async getSMSById(smsId: string): Promise<any> {

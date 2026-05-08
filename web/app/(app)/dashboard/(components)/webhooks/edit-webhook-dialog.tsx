@@ -102,16 +102,7 @@ export function EditWebhookDialog({
     updateWebhook(values)
   }
 
-  const message_events = [
-    'MESSAGE_RECEIVED',
-    'MESSAGE_SENT',
-    'MESSAGE_DELIVERED',
-    'MESSAGE_FAILED',
-    
-    // TODO: handle these events better in the future
-    // 'UNKNOWN_STATE',
-    // 'SMS_STATUS_UPDATED',
-  ]
+  const message_events = Object.values(WEBHOOK_EVENTS)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

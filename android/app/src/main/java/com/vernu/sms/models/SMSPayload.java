@@ -4,6 +4,9 @@ public class SMSPayload {
 
     private String[] recipients;
     private String message;
+    private String messageKind;
+    private String subject;
+    private MessageAttachmentPayload[] attachments;
     private String smsId;
     private String smsBatchId;
     private Integer simSubscriptionId;
@@ -29,6 +32,30 @@ public class SMSPayload {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getMessageKind() {
+        return messageKind;
+    }
+
+    public void setMessageKind(String messageKind) {
+        this.messageKind = messageKind;
+    }
+
+    public String getSubject() {
+        return subject;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
+
+    public MessageAttachmentPayload[] getAttachments() {
+        return attachments;
+    }
+
+    public void setAttachments(MessageAttachmentPayload[] attachments) {
+        this.attachments = attachments;
     }
 
     public String getSmsId() {

@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useForm, useFieldArray, Controller, useWatch } from 'react-hook-form'
+import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { sendSmsSchema } from '@/lib/schemas'
 import type { SendSmsFormData } from '@/lib/schemas'
@@ -48,8 +48,14 @@ export default function SendSms() {
     isSuccess: isSendSmsSuccess,
   } = useMutation({
     mutationKey: ['send-sms'],
-    mutationFn: (data: SendSmsFormData) =>
-      httpBrowserClient.post(ApiEndpoints.gateway.sendSMS(data.deviceId), data),
+    mutationFn: (data: SendSmsFormData) => {
+      const endpoint =
+        data.messageKind === 'mms'
+          ? ApiEndpoints.gateway.sendMMS(data.deviceId)
+          : ApiEndpoints.gateway.sendSMS(data.deviceId)
+
+      return httpBrowserClient.post(endpoint, data)
+    },
   })
 
   const { toast } = useToast()
@@ -58,27 +64,32 @@ export default function SendSms() {
     control,
     handleSubmit,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<SendSmsFormData>({
     resolver: zodResolver(sendSmsSchema),
     defaultValues: {
       deviceId:
         devices?.data?.length === 1 ? devices?.data?.[0]?._id : undefined,
+      messageKind: 'sms',
       recipients: [''],
       message: '',
+      attachments: [],
     },
-  })
-
-  const { fields, append, remove } = useFieldArray({
-    control,
-    // @ts-expect-error
-    name: 'recipients',
   })
 
   const selectedDeviceId = useWatch({
     control,
     name: 'deviceId',
   })
+  const selectedMessageKind = useWatch({
+    control,
+    name: 'messageKind',
+  })
+  const recipients = useWatch({
+    control,
+    name: 'recipients',
+  }) || ['']
 
   const selectedDevice = devices?.data?.find(
     (device) => device._id === selectedDeviceId
@@ -113,6 +124,24 @@ export default function SendSms() {
             className='space-y-4'
           >
             <div className='space-y-4'>
+              <div>
+                <Controller
+                  name='messageKind'
+                  control={control}
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder='Select message type' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='sms'>SMS</SelectItem>
+                        <SelectItem value='mms'>MMS</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+
               <div>
                 <Controller
                   name='deviceId'
@@ -181,8 +210,8 @@ export default function SendSms() {
               )}
 
               <div className='space-y-2'>
-                {fields.map((field, index) => (
-                  <div key={field.id}>
+                {recipients.map((_, index) => (
+                  <div key={`recipient-${index}`}>
                     <div className='flex gap-2'>
                       <Input
                         type='tel'
@@ -193,8 +222,17 @@ export default function SendSms() {
                         type='button'
                         variant='ghost'
                         size='icon'
-                        onClick={() => remove(index)}
-                        disabled={index === 0 && fields?.length === 1}
+                        onClick={() => {
+                          const nextRecipients = getValues('recipients').filter(
+                            (_, recipientIndex) => recipientIndex !== index,
+                          )
+                          setValue(
+                            'recipients',
+                            nextRecipients.length > 0 ? nextRecipients : [''],
+                            { shouldValidate: true },
+                          )
+                        }}
+                        disabled={index === 0 && recipients.length === 1}
                       >
                         <X className='h-4 w-4' />
                       </Button>
@@ -210,7 +248,13 @@ export default function SendSms() {
                   type='button'
                   variant='outline'
                   size='sm'
-                  onClick={() => append('')}
+                  onClick={() =>
+                    setValue(
+                      'recipients',
+                      [...getValues('recipients'), ''],
+                      { shouldValidate: true },
+                    )
+                  }
                   className='w-full'
                 >
                   <Plus className='h-4 w-4 mr-2' />
@@ -242,6 +286,44 @@ export default function SendSms() {
                   </p>
                 )}
               </div>
+
+              {selectedMessageKind === 'mms' && (
+                <>
+                  <div>
+                    <Controller
+                      name='subject'
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          type='text'
+                          placeholder='MMS subject (optional)'
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                        />
+                      )}
+                    />
+                    {errors.subject && (
+                      <p className='text-sm text-destructive mt-1'>
+                        {errors.subject.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Input
+                      type='url'
+                      placeholder='Attachment URL (required for MMS)'
+                      {...register('attachments.0.url')}
+                    />
+                    {(errors.attachments?.[0]?.url || errors.attachments) && (
+                      <p className='text-sm text-destructive mt-1'>
+                        {(errors.attachments?.[0] as any)?.url?.message ||
+                          (errors.attachments as any)?.message}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
             {sendSmsError && (() => {
               const formattedError = formatError(sendSmsError)
@@ -255,7 +337,7 @@ export default function SendSms() {
               }
               return (
                 <div className='flex items-center gap-2 text-destructive'>
-                  <p>Error sending SMS: {formattedError.message}</p>
+                  <p>Error sending message: {formattedError.message}</p>
                   <X className='h-5 w-5' />
                 </div>
               )
@@ -263,7 +345,7 @@ export default function SendSms() {
 
             {isSendSmsSuccess && (
               <div className='flex items-center gap-2'>
-                <p>SMS sent successfully!</p>
+                <p>Message sent successfully!</p>
                 <Check className='h-5 w-5' />
               </div>
             )}
@@ -272,7 +354,11 @@ export default function SendSms() {
               {isSendingSms && (
                 <Spinner size='sm' className='mr-2' color='white' />
               )}
-              {isSendingSms ? 'Sending...' : 'Send Message'}
+              {isSendingSms
+                ? 'Sending...'
+                : selectedMessageKind === 'mms'
+                  ? 'Send MMS'
+                  : 'Send SMS'}
             </Button>
           </form>
         </CardContent>

@@ -480,6 +480,9 @@ function SmsDetailsDialog({
                 <span className="capitalize">{isSent ? 'Sent' : 'Received'}</span>
               </div>
 
+              <div className="font-medium text-muted-foreground">Kind</div>
+              <div className="uppercase">{message.messageKind || 'sms'}</div>
+
               <div className="font-medium text-muted-foreground">Number</div>
               <div>
                 {isSent ? message.recipient || message.recipients?.[0] || 'Unknown'
@@ -546,6 +549,25 @@ function SmsDetailsDialog({
                 {message.message}
               </div>
             </div>
+
+            {Array.isArray(message.attachments) && message.attachments.length > 0 && (
+              <div className="pt-4 border-t border-border">
+                <h4 className="font-medium text-sm text-muted-foreground mb-1">Attachments</h4>
+                <div className="space-y-2">
+                  {message.attachments.map((attachment: any, index: number) => (
+                    <a
+                      key={`${attachment.url}-${index}`}
+                      href={attachment.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-sm underline break-all"
+                    >
+                      {attachment.fileName || attachment.url}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-2 mt-4 pt-2 border-t border-border">

@@ -22,6 +22,30 @@ export class SMS {
   @Prop({ type: String })
   message: string
 
+  @Prop({ type: String, enum: ['sms', 'mms'], default: 'sms' })
+  messageKind: 'sms' | 'mms'
+
+  @Prop({ type: String })
+  subject?: string
+
+  @Prop({
+    type: [
+      {
+        url: String,
+        mimeType: String,
+        fileName: String,
+        sizeBytes: Number,
+      },
+    ],
+    default: [],
+  })
+  attachments?: Array<{
+    url: string
+    mimeType?: string
+    fileName?: string
+    sizeBytes?: number
+  }>
+
   @Prop({ type: Boolean, default: false })
   encrypted: boolean
 
@@ -78,6 +102,12 @@ export class SMS {
 
   @Prop({ type: Number, required: false })
   simSubscriptionId?: number
+
+  @Prop({ type: String })
+  threadId?: string
+
+  @Prop({ type: String })
+  groupId?: string
 
   // misc metadata for debugging
   @Prop({ type: Object })

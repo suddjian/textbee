@@ -11,6 +11,8 @@ import androidx.work.Worker;
 import androidx.work.WorkManager;
 import androidx.work.WorkerParameters;
 
+import com.google.gson.Gson;
+import com.vernu.sms.models.MessageAttachmentPayload;
 import com.vernu.sms.AppConstants;
 import com.vernu.sms.TextBeeUtils;
 import com.vernu.sms.helpers.SMSHelper;
@@ -25,6 +27,9 @@ public class SmsSendWorker extends Worker {
     public static final String KEY_SMS_ID = "sms_id";
     public static final String KEY_SMS_BATCH_ID = "sms_batch_id";
     public static final String KEY_SIM_SUBSCRIPTION_ID = "sim_subscription_id";
+    public static final String KEY_MESSAGE_KIND = "message_kind";
+    public static final String KEY_MMS_SUBJECT = "mms_subject";
+    public static final String KEY_MMS_ATTACHMENTS = "mms_attachments";
 
     public SmsSendWorker(@NonNull Context context, @NonNull WorkerParameters workerParams) {
         super(context, workerParams);
@@ -38,21 +43,55 @@ public class SmsSendWorker extends Worker {
         String smsId = getInputData().getString(KEY_SMS_ID);
         String smsBatchId = getInputData().getString(KEY_SMS_BATCH_ID);
         int simSubscriptionId = getInputData().getInt(KEY_SIM_SUBSCRIPTION_ID, -1);
+        String messageKind = getInputData().getString(KEY_MESSAGE_KIND);
+        String mmsSubject = getInputData().getString(KEY_MMS_SUBJECT);
+        String mmsAttachmentsJson = getInputData().getString(KEY_MMS_ATTACHMENTS);
 
-        if (phone == null || message == null || smsId == null) {
+        if (phone == null || smsId == null) {
             Log.e(TAG, "Missing required parameters");
             return Result.failure();
         }
 
         Context context = getApplicationContext();
+        boolean isMms = "mms".equalsIgnoreCase(messageKind);
+
+        if (!isMms && message == null) {
+            Log.e(TAG, "Missing message for SMS payload");
+            return Result.failure();
+        }
 
         // Resolve SIM: backend-provided > app preference > device default
         Integer resolvedSim = resolveSim(context, simSubscriptionId);
 
-        if (resolvedSim != null) {
-            SMSHelper.sendSMSFromSpecificSim(phone, message, resolvedSim, smsId, smsBatchId, context);
+        if (isMms) {
+            MessageAttachmentPayload[] attachments = new MessageAttachmentPayload[0];
+            if (mmsAttachmentsJson != null && !mmsAttachmentsJson.trim().isEmpty()) {
+                try {
+                    attachments = new Gson().fromJson(mmsAttachmentsJson, MessageAttachmentPayload[].class);
+                    if (attachments == null) {
+                        attachments = new MessageAttachmentPayload[0];
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed parsing MMS attachments JSON: " + e.getMessage());
+                }
+            }
+
+            SMSHelper.sendMMS(
+                    phone,
+                    message,
+                    mmsSubject,
+                    attachments,
+                    resolvedSim,
+                    smsId,
+                    smsBatchId,
+                    context
+            );
         } else {
-            SMSHelper.sendSMS(phone, message, smsId, smsBatchId, context);
+            if (resolvedSim != null) {
+                SMSHelper.sendSMSFromSpecificSim(phone, message, resolvedSim, smsId, smsBatchId, context);
+            } else {
+                SMSHelper.sendSMS(phone, message, smsId, smsBatchId, context);
+            }
         }
 
         // Enforce rate limit delay
@@ -91,13 +130,22 @@ public class SmsSendWorker extends Worker {
     }
 
     public static void enqueue(Context context, String phone, String message,
-                               String smsId, String smsBatchId, Integer simSubscriptionId) {
+                               String smsId, String smsBatchId, Integer simSubscriptionId, String messageKind,
+                               String mmsSubject, MessageAttachmentPayload[] mmsAttachments) {
+        String attachmentsJson = null;
+        if (mmsAttachments != null && mmsAttachments.length > 0) {
+            attachmentsJson = new Gson().toJson(mmsAttachments);
+        }
+
         Data inputData = new Data.Builder()
                 .putString(KEY_PHONE, phone)
                 .putString(KEY_MESSAGE, message)
                 .putString(KEY_SMS_ID, smsId)
                 .putString(KEY_SMS_BATCH_ID, smsBatchId)
                 .putInt(KEY_SIM_SUBSCRIPTION_ID, simSubscriptionId != null ? simSubscriptionId : -1)
+                .putString(KEY_MESSAGE_KIND, messageKind != null ? messageKind : "sms")
+                .putString(KEY_MMS_SUBJECT, mmsSubject)
+                .putString(KEY_MMS_ATTACHMENTS, attachmentsJson)
                 .build();
 
         OneTimeWorkRequest workRequest = new OneTimeWorkRequest.Builder(SmsSendWorker.class)
@@ -109,5 +157,10 @@ public class SmsSendWorker extends Worker {
                 .enqueue();
 
         Log.d(TAG, "SMS enqueued for sending - ID: " + smsId + ", Phone: " + phone);
+    }
+
+    public static void enqueue(Context context, String phone, String message,
+                               String smsId, String smsBatchId, Integer simSubscriptionId) {
+        enqueue(context, phone, message, smsId, smsBatchId, simSubscriptionId, "sms", null, null);
     }
 }
